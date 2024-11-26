@@ -1,155 +1,128 @@
-from time import sleep
 import random
+from time import sleep
 
-# initializing the deck
-ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
-suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-deck = [rank + " of " + suit for rank in ranks for suit in suits]
-ranks_and_powers = {
-    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10, "J": 10, "Q": 10, "K": 10, "A": 11
+# Card constants
+RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+SUITS = ["Hearts", "Diamonds", "Clubs", "Spades"]
+RANK_VALUES = {
+    "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
+    "10": 10, "J": 10, "Q": 10, "K": 10, "A": 11
 }
 
 
-# drawing a card function
-def draw_a_card(deck):
+def create_deck():
+    return [f"{rank} of {suit}" for rank in RANKS for suit in SUITS]
+
+
+def draw_card(deck):
     card = random.choice(deck)
     deck.remove(card)
     return card
 
 
-# gets the card's power
-def get_card_power(card):
-    card_rank = card.split(' ')[0]  # Split the card string and get the rank part
-    card_power = ranks_and_powers[card_rank]
-    return card_power
+def get_card_value(card):
+    return RANK_VALUES[card.split()[0]]
 
 
-# add up player score
-def get_total_score(card_list):
-    score = 0
-    num_aces = 0
-    for card in card_list:
-        current_card = get_card_power(card)
-        score += current_card
-        if 'A' in card:
-            num_aces += 1
-    while score > 21 and num_aces > 0:
+def calculate_score(cards):
+    score = sum(get_card_value(card) for card in cards)
+    aces = sum(1 for card in cards if card.startswith('A'))
+    while score > 21 and aces:
         score -= 10
-        num_aces -= 1
+        aces -= 1
     return score
 
 
-# Game start
-print("Hello, player.")
-sleep(1)
-# Loop for value confirmation and changing
-while True:
-    player_name = input("Please input your name: ")
-
+def get_player_info():
     while True:
-        player_chips = input("Please input the chips you start with: ")
-        if player_chips.isdigit():
-            player_chips = int(player_chips)
-            break
-        else:
+        name = input("Please input your name: ")
+        while True:
+            chips = input("Please input the chips you start with: ")
+            if chips.isdigit():
+                chips = int(chips)
+                break
             print("You gave an invalid value.")
 
-    print(f"You are named {player_name} and you start with {player_chips} chips."
-          f"\nEnter \"Change\" if you want to change that: ")
-
-    if not input().lower().strip() == 'change':
-        break
+        print(f"You are named {name} and you start with {chips} chips.")
+        if input("Enter 'Change' if you want to change that: ").lower().strip() != 'change':
+            return name, chips
 
 
-# main game loop
-
-while True:
-    # init and reset variables
-    temp_deck = deck.copy()
-    dealer_cards = []
-    player_cards = []
-    player_bust = False
-    dealer_bust = False
-    # setting the bet
+def get_bet(chips):
     while True:
-        temp_variable = int(input(f"Please input your bet. You have {player_chips} chips: "))
-        if player_chips >= temp_variable > 0:
-            bet = temp_variable
-            break
-        else:
-            print("The given value must be more than 0 and less than or equal to your chips. ")
-    # game start
-    sleep(1)
-    print("Let's begin!")
-    sleep(0.5)
-    player_cards.append(draw_a_card(temp_deck))
-    dealer_cards.append(draw_a_card(temp_deck))
-    player_cards.append(draw_a_card(temp_deck))
-    dealer_cards.append(draw_a_card(temp_deck))
-    print("The dealer has the following cards: ")
+        bet = input(f"Please input your bet. You have {chips} chips: ")
+        if bet.isdigit() and 0 < int(bet) <= chips:
+            return int(bet)
+        print("The given value must be more than 0 and less than or equal to your chips.")
+
+
+def play_round(deck, player_chips):
+    bet = get_bet(player_chips)
+    player_hand = [draw_card(deck), draw_card(deck)]
+    dealer_hand = [draw_card(deck), draw_card(deck)]
+
+    print("Dealer's hand:")
     print("Face down card")
-    print(dealer_cards[1])
-    print("You have the following cards: ")
-    for i in player_cards:
-        print(i)
-    # hit or stand loop until stand or bust
+    print(dealer_hand[1])
+    print("Your hand:")
+    for card in player_hand:
+        print(card)
+
+    # Player's turn
     while True:
-        print("Do you want to hit or stand?")
-        temp_variable = input("Type 'h' to hit or 's' to stand: ")
-        temp_variable.strip().lower()
-        if temp_variable == 'h':
-            temp_variable = draw_a_card(temp_deck)
-            player_cards.append(temp_variable)
-            print("You have drawn a " + temp_variable)
-        elif temp_variable == 's':
-            break
-        temp_variable = get_total_score(player_cards)
-        # check if bust
-        if temp_variable > 21:
-            print("You went bust.")
-            player_chips -= bet
-            player_bust = True
+        if input("Type 'h' to hit or 's' to stand: ").lower().strip() == 'h':
+            player_hand.append(draw_card(deck))
+            print(f"You have drawn a {player_hand[-1]}")
+            if calculate_score(player_hand) > 21:
+                print("You went bust.")
+                return -bet
+        else:
             break
 
+    # Dealer's turn
+    print("Dealer's hand:")
+    while calculate_score(dealer_hand) < 17:
+        dealer_hand.append(draw_card(deck))
+    for card in dealer_hand:
+        print(card)
+
+    player_score = calculate_score(player_hand)
+    dealer_score = calculate_score(dealer_hand)
+    print(f"Your score is {player_score} and the dealer's score is {dealer_score}.")
+
+    if dealer_score > 21:
+        print("The dealer went bust. You win!")
+        return bet * 2.5 if player_score == 21 else bet
+    elif player_score > dealer_score:
+        print("You win!")
+        return bet * 2.5 if player_score == 21 else bet
+    elif player_score == dealer_score:
+        print("It's a tie!")
+        return 0
+    else:
+        print("You lost.")
+        return -bet
 
 
-    if not player_bust:
-        while get_total_score(dealer_cards) < 17:
-            dealer_cards.append(draw_a_card(temp_deck))
+def main():
+    print("Hello, player.")
+    sleep(1)
+    player_name, player_chips = get_player_info()
 
-        print("The dealer's cards are: ")
-        for i in dealer_cards:
-            print(i)
+    while player_chips > 0:
+        deck = create_deck()
+        player_chips += play_round(deck, player_chips)
+        player_chips = round(player_chips)
 
-        player_score = get_total_score(player_cards)
-        dealer_score = get_total_score(dealer_cards)
+        if player_chips <= 0:
+            print('You have 0 chips and you lost the game.')
+            break
 
-        print(f"Your score is {player_score} and the dealer's score is {dealer_score}.")
-        if dealer_score > 21:
-            dealer_bust = True
-            print("The dealer went bust. You win!")
-            if player_score == 21:
-                print("You got a blackjack! You win X2.5 your bet.")
-                player_chips += bet * 1.5
-                player_chips = round(player_chips)
-            else:
-                player_chips += bet
-        if not dealer_bust:
-            if player_score > dealer_score:
-                if player_score == 21:
-                    print("You got a blackjack! You instantly win X2.5 your bet.")
-                    player_chips += bet * 1.5
-                    player_chips = round(player_chips)
-                else:
-                    print("You win!")
-                    player_chips += bet
-            else:
-                print("You lost.")
-                player_chips -= bet
+        if input("Type 'exit' to quit or press Enter to play again: ").lower().strip() == 'exit':
+            break
 
-    if player_chips <= 0:
-        print('You have 0 chips and you lost the game.')
-        break
-    # Exit or replay
-    if input("Type 'exit' if you want to exit or press 'Enter' to replay: ") == 'exit':
-        break
+    print(f"Thank you for playing, {player_name}. You finished with {player_chips} chips.")
+
+
+if __name__ == "__main__":
+    main()
